@@ -168,21 +168,26 @@
       let wMin = [...w];
 
       while (error > 0 && i < cota) {
-        const idx = Math.floor(Math.random() * x.length);
-        const salida = signo(dot(xExt[idx], w));
-        const delta = xExt[idx].map(val => eta * (y[idx] - salida) * val);
-        w = w.map((wi, j) => wi + delta[j]);
-        error = errorAbsoluto(x, y, w);
+        let errorIteracion = 0;
 
-        if (error < errorMin) {
-          errorMin = error;
+        for (let idx = 0; idx < x.length; idx++) {
+          const salida = signo(dot(xExt[idx], w));
+          const delta = xExt[idx].map(val => eta * (y[idx] - salida) * val);
+          w = w.map((wi, j) => wi + delta[j]);
+          const salidaFinal = signo(dot(xExt[idx], w));
+          errorIteracion += Math.abs(y[idx] - salidaFinal);
+
+          graficar(x, y, w, i);
+          actualizarGrafos(w);
+          await new Promise(res => setTimeout(res, 150));
+        }
+
+        if (errorIteracion < errorMin) {
+          errorMin = errorIteracion;
           wMin = [...w];
         }
 
-        graficar(x, y, w, i);
-        actualizarGrafos(w);
-        await new Promise(res => setTimeout(res, 150));
-
+        if (errorIteracion === 0) break;
         i++;
       }
 
