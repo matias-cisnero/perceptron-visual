@@ -1,142 +1,143 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Visualización del Perceptrón</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Perceptrón Visual</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; margin: 30px; }
-    canvas { background: #f9f9f9; max-width: 600px; margin: 20px auto; }
-    button { margin: 10px; padding: 10px 20px; font-size: 16px; }
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin: 30px;
+    }
+    canvas {
+      max-width: 500px;
+    }
+    label, input {
+      margin: 5px;
+    }
   </style>
 </head>
 <body>
-  <h1>Visualización del Perceptrón Simple</h1>
-  <canvas id="chart" width="600" height="400"></canvas>
-  <br>
-  <button onclick="togglePause()">Pausar/Reanudar</button>
-  <button onclick="setDataset('and')">AND</button>
-  <button onclick="setDataset('xor')">XOR</button>
-  <div id="status"></div>
+  <h1>Entrenamiento del Perceptrón</h1>
+
+  <label for="dataset">Selecciona un dataset:</label>
+  <select id="dataset">
+    <option value="and">AND</option>
+    <option value="xor">XOR</option>
+  </select><br>
+
+  <label for="eta">Tasa de aprendizaje (η):</label>
+  <input type="number" id="eta" step="0.01" value="0.1" /><br>
+
+  <label for="cota">Cantidad máxima de iteraciones:</label>
+  <input type="number" id="cota" value="100" /><br>
+
+  <button onclick="iniciarEntrenamiento()">Iniciar entrenamiento</button>
+
+  <canvas id="grafico" width="400" height="400"></canvas>
 
   <script>
-    let datasets = {
-      'and': {
+    const canvas = document.getElementById("grafico");
+    const ctx = canvas.getContext("2d");
+    let chart;
+
+    const datasets = {
+      and: {
         x: [[-1, 1], [1, -1], [-1, -1], [1, 1]],
         y: [-1, -1, -1, 1]
       },
-      'xor': {
+      xor: {
         x: [[-1, 1], [1, -1], [-1, -1], [1, 1]],
         y: [1, 1, -1, -1]
       }
     };
 
-    let currentDataset = 'and';
-    let paused = false;
-    let intervalId;
-
-    const canvas = document.getElementById('chart');
-    const ctx = canvas.getContext('2d');
-
-    let scatterChart = new Chart(ctx, {
-      type: 'scatter',
-      data: { datasets: [] },
-      options: {
-        animation: false,
-        scales: {
-          x: { type: 'linear', min: -2, max: 2 },
-          y: { type: 'linear', min: -2, max: 2 }
-        }
-      }
-    });
-
-    function signo(h) { return h >= 0 ? 1 : -1; }
+    function signo(h) {
+      return h >= 0 ? 1 : -1;
+    }
 
     function errorAbsoluto(x, y, w) {
       let error = 0;
       for (let i = 0; i < x.length; i++) {
-        let h = x[i][0]*w[0] + x[i][1]*w[1] + w[2];
-        let o = signo(h);
-        error += Math.abs(y[i] - o);
+        const entrada = [...x[i], 1];
+        const salida = signo(dot(entrada, w));
+        error += Math.abs(y[i] - salida);
       }
       return error;
     }
 
-    function entrenar(datasetName) {
-      clearInterval(intervalId);
+    function dot(a, b) {
+      return a.reduce((acc, val, i) => acc + val * b[i], 0);
+    }
 
-      const data = datasets[datasetName];
-      const x = data.x;
-      const y = data.y;
+    function graficar(x, y, w, iter) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.translate(200, 200);
+      ctx.scale(50, -50);
 
+      // Puntos
+      for (let i = 0; i < x.length; i++) {
+        ctx.beginPath();
+        ctx.arc(x[i][0], x[i][1], 0.1, 0, 2 * Math.PI);
+        ctx.fillStyle = y[i] === 1 ? "green" : "red";
+        ctx.fill();
+      }
+
+      // Recta
+      if (w[1] !== 0) {
+        ctx.beginPath();
+        ctx.moveTo(-2, -(w[0] * -2 + w[2]) / w[1]);
+        ctx.lineTo(2, -(w[0] * 2 + w[2]) / w[1]);
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 0.05;
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    async function perceptronSimple(x, y, eta, cota) {
       let w = [0, 0, 1];
-      const eta = 0.1;
+      let error = Infinity;
       let i = 0;
-      let error = 1;
+      const xExt = x.map(p => [...p, 1]);
+      let errorMin = Infinity;
+      let wMin = [...w];
 
-      intervalId = setInterval(() => {
-        if (paused) return;
-
+      while (error > 0 && i < cota) {
         const idx = Math.floor(Math.random() * x.length);
-        let h = x[idx][0]*w[0] + x[idx][1]*w[1] + w[2];
-        let o = signo(h);
-        let dw = eta * (y[idx] - o);
-
-        w[0] += dw * x[idx][0];
-        w[1] += dw * x[idx][1];
-        w[2] += dw;
-
+        const salida = signo(dot(xExt[idx], w));
+        const delta = xExt[idx].map(val => eta * (y[idx] - salida) * val);
+        w = w.map((wi, j) => wi + delta[j]);
         error = errorAbsoluto(x, y, w);
-        graficar(x, y, w, i);
 
-        if (error === 0 || i > 500) {
-          clearInterval(intervalId);
-          document.getElementById('status').innerText = `Entrenamiento finalizado en ${i} iteraciones.`;
+        if (error < errorMin) {
+          errorMin = error;
+          wMin = [...w];
+        }
+
+        if (i % 10 === 0) {
+          graficar(x, y, w, i);
+          await new Promise(res => setTimeout(res, 100));
         }
         i++;
-      }, 200);
-    }
-
-    function graficar(x, y, w, iteracion) {
-      const dataPos = [], dataNeg = [];
-      for (let i = 0; i < x.length; i++) {
-        (y[i] > 0 ? dataPos : dataNeg).push({x: x[i][0], y: x[i][1]});
       }
 
-      let recta = [];
-      if (w[1] !== 0) {
-        let x_vals = [-2, 2];
-        let y_vals = x_vals.map(x => -(w[0]*x + w[2]) / w[1]);
-        recta = [{x: x_vals[0], y: y_vals[0]}, {x: x_vals[1], y: y_vals[1]}];
-      }
-
-      scatterChart.data.datasets = [
-        {
-          label: 'Clase 1', data: dataPos, backgroundColor: 'blue', showLine: false
-        },
-        {
-          label: 'Clase -1', data: dataNeg, backgroundColor: 'red', showLine: false
-        },
-        {
-          label: `Recta iter ${iteracion}`, data: recta, borderColor: 'black', fill: false, showLine: true, pointRadius: 0
-        }
-      ];
-
-      scatterChart.update();
+      graficar(x, y, w, i);
+      console.log(`Pesos finales tras ${i} iteraciones:`, wMin);
     }
 
-    function togglePause() {
-      paused = !paused;
-    }
+    function iniciarEntrenamiento() {
+      const tipo = document.getElementById("dataset").value;
+      const eta = parseFloat(document.getElementById("eta").value);
+      const cota = parseInt(document.getElementById("cota").value);
 
-    function setDataset(name) {
-      currentDataset = name;
-      document.getElementById('status').innerText = `Dataset seleccionado: ${name.toUpperCase()}`;
-      entrenar(name);
+      const datos = datasets[tipo];
+      perceptronSimple(datos.x, datos.y, eta, cota);
     }
-
-    // Inicialización
-    setDataset(currentDataset);
   </script>
 </body>
 </html>
