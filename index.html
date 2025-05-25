@@ -71,6 +71,12 @@
 <body>
   <h1>Entrenamiento del Perceptrón</h1>
 
+  <label for="modelo">Modelo:</label>
+  <select id="modelo">
+    <option value="simple">Perceptrón Simple</option>
+    <option value="multicapa">Multicapa</option>
+  </select><br>
+
   <label for="dataset">Selecciona un dataset:</label>
   <select id="dataset">
     <option value="and">AND</option>
@@ -83,39 +89,14 @@
   <label for="cota">Cantidad máxima de iteraciones:</label>
   <input type="number" id="cota" value="100" /><br>
 
-  <label for="modelo">Tipo de modelo:</label>
-  <select id="modelo">
-    <option value="simple">Perceptrón Simple</option>
-    <option value="multicapa">Multicapa (2 capas)</option>
-  </select><br>
-
   <button id="btn-entrenar" onclick="iniciarEntrenamiento()">Iniciar entrenamiento</button>
 
   <p id="resultado"></p>
 
   <div class="visualization-container">
     <canvas id="grafico" width="400" height="400"></canvas>
-
     <div class="perceptron-diagram">
-      <svg width="300" height="200">
-        <line id="line0" class="connection" x1="50" y1="50" x2="250" y2="100" />
-        <line id="line1" class="connection" x1="50" y1="100" x2="250" y2="100" />
-        <line id="line2" class="connection" x1="50" y1="150" x2="250" y2="100" />
-
-        <circle class="neuron" cx="50" cy="50" r="20" />
-        <circle class="neuron" cx="50" cy="100" r="20" />
-        <circle class="neuron" cx="50" cy="150" r="20" />
-        <circle class="neuron" cx="250" cy="100" r="20" />
-
-        <text x="50" y="55" text-anchor="middle" class="neuron-label">x₁</text>
-        <text x="50" y="105" text-anchor="middle" class="neuron-label">x₂</text>
-        <text x="50" y="155" text-anchor="middle" class="neuron-label">1</text>
-        <text x="250" y="105" text-anchor="middle" class="neuron-label">O</text>
-
-        <text id="peso0" x="140" y="45" font-size="12"></text>
-        <text id="peso1" x="140" y="95" font-size="12"></text>
-        <text id="peso2" x="140" y="145" font-size="12"></text>
-      </svg>
+      <svg id="svg-diagram" width="300" height="200"></svg>
     </div>
   </div>
 
@@ -142,17 +123,19 @@
       return a.reduce((acc, val, i) => acc + val * b[i], 0);
     }
 
-    function errorAbsoluto(x, y, w) {
+    function errorAbsoluto(x, y, w, modelo) {
       let error = 0;
       for (let i = 0; i < x.length; i++) {
         const entrada = [...x[i], 1];
-        const salida = signo(dot(entrada, w));
+        const salida = modelo === "simple" ?
+          signo(dot(entrada, w)) :
+          signo(dot([1, ...[signo(dot(entrada, w[0])), signo(dot(entrada, w[1]))]], w[2]));
         error += Math.abs(y[i] - salida);
       }
       return error;
     }
 
-    function graficar(x, y, wList) {
+    function graficar(x, y, w, modelo) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
       ctx.translate(200, 200);
@@ -181,91 +164,141 @@
         ctx.stroke();
       }
 
-      wList.forEach(w => {
-        if (w[1] !== 0) {
-          ctx.beginPath();
-          ctx.moveTo(-2, -(w[0] * -2 + w[2]) / w[1]);
-          ctx.lineTo(2, -(w[0] * 2 + w[2]) / w[1]);
-          ctx.strokeStyle = "#000";
-          ctx.lineWidth = 0.05;
-          ctx.setLineDash([0.1, 0.1]);
-          ctx.stroke();
-          ctx.setLineDash([]);
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 0.05;
+      ctx.setLineDash([0.1, 0.1]);
+      if (modelo === "simple" && w[1] !== 0) {
+        ctx.beginPath();
+        ctx.moveTo(-2, -(w[0] * -2 + w[2]) / w[1]);
+        ctx.lineTo(2, -(w[0] * 2 + w[2]) / w[1]);
+        ctx.stroke();
+      } else if (modelo === "multicapa") {
+        for (let j = 0; j < 2; j++) {
+          if (w[j][1] !== 0) {
+            ctx.beginPath();
+            ctx.moveTo(-2, -(w[j][0] * -2 + w[j][2]) / w[j][1]);
+            ctx.lineTo(2, -(w[j][0] * 2 + w[j][2]) / w[j][1]);
+            ctx.stroke();
+          }
         }
-      });
-
+      }
+      ctx.setLineDash([]);
       ctx.restore();
     }
 
-    function actualizarGrafos(w) {
-      for (let i = 0; i < 3; i++) {
-        document.getElementById(`peso${i}`).textContent = `w${i}: ${w[i].toFixed(2)}`;
+    function actualizarSVG(modelo) {
+      const svg = document.getElementById("svg-diagram");
+      svg.innerHTML = "";
+
+      if (modelo === "simple") {
+        svg.innerHTML = `
+          <line class="connection" x1="50" y1="50" x2="250" y2="100" />
+          <line class="connection" x1="50" y1="100" x2="250" y2="100" />
+          <line class="connection" x1="50" y1="150" x2="250" y2="100" />
+
+          <circle class="neuron" cx="50" cy="50" r="20" />
+          <circle class="neuron" cx="50" cy="100" r="20" />
+          <circle class="neuron" cx="50" cy="150" r="20" />
+          <circle class="neuron" cx="250" cy="100" r="20" />
+
+          <text x="50" y="55" text-anchor="middle" class="neuron-label">x₁</text>
+          <text x="50" y="105" text-anchor="middle" class="neuron-label">x₂</text>
+          <text x="50" y="155" text-anchor="middle" class="neuron-label">1</text>
+          <text x="250" y="105" text-anchor="middle" class="neuron-label">O</text>`;
+      } else {
+        svg.innerHTML = `
+          <line class="connection" x1="50" y1="50" x2="150" y2="60" />
+          <line class="connection" x1="50" y1="100" x2="150" y2="60" />
+          <line class="connection" x1="50" y1="150" x2="150" y2="60" />
+          <line class="connection" x1="50" y1="50" x2="150" y2="140" />
+          <line class="connection" x1="50" y1="100" x2="150" y2="140" />
+          <line class="connection" x1="50" y1="150" x2="150" y2="140" />
+
+          <line class="connection" x1="150" y1="60" x2="250" y2="100" />
+          <line class="connection" x1="150" y1="140" x2="250" y2="100" />
+
+          <circle class="neuron" cx="50" cy="50" r="20" />
+          <circle class="neuron" cx="50" cy="100" r="20" />
+          <circle class="neuron" cx="50" cy="150" r="20" />
+          <circle class="neuron" cx="150" cy="60" r="20" />
+          <circle class="neuron" cx="150" cy="140" r="20" />
+          <circle class="neuron" cx="250" cy="100" r="20" />
+
+          <text x="50" y="55" text-anchor="middle" class="neuron-label">x₁</text>
+          <text x="50" y="105" text-anchor="middle" class="neuron-label">x₂</text>
+          <text x="50" y="155" text-anchor="middle" class="neuron-label">1</text>
+          <text x="150" y="65" text-anchor="middle" class="neuron-label">h₁</text>
+          <text x="150" y="145" text-anchor="middle" class="neuron-label">h₂</text>
+          <text x="250" y="105" text-anchor="middle" class="neuron-label">O</text>`;
       }
     }
 
     async function perceptronSimple(x, y, eta, cota) {
       let w = [0, 0, 1];
-      let error = Infinity;
-      let i = 0;
+      let error = Infinity, i = 0, errorMin = Infinity, wMin = [...w];
       const xExt = x.map(p => [...p, 1]);
-      let errorMin = Infinity;
-      let wMin = [...w];
-
       while (error > 0 && i < cota) {
         const idx = Math.floor(Math.random() * x.length);
         const salida = signo(dot(xExt[idx], w));
         const delta = xExt[idx].map(val => eta * (y[idx] - salida) * val);
         w = w.map((wi, j) => wi + delta[j]);
-        error = errorAbsoluto(x, y, w);
-
-        if (error < errorMin) {
-          errorMin = error;
-          wMin = [...w];
-        }
-
-        graficar(x, y, [w]);
-        actualizarGrafos(w);
+        error = errorAbsoluto(x, y, w, "simple");
+        if (error < errorMin) [errorMin, wMin] = [error, [...w]];
+        graficar(x, y, w, "simple");
         await new Promise(res => setTimeout(res, 150));
         i++;
       }
-
-      graficar(x, y, [wMin]);
-      actualizarGrafos(wMin);
-      document.getElementById("resultado").innerText = `Pesos finales tras ${i} iteraciones: [${wMin.map(n => n.toFixed(2)).join(", ")}] con error ${errorMin}`;
+      graficar(x, y, wMin, "simple");
+      document.getElementById("resultado").innerText = `Pesos finales: [${wMin.map(n => n.toFixed(2)).join(", ")}] con error ${errorMin}`;
     }
 
     async function perceptronMulticapa(x, y, eta, cota) {
-      let w1 = [
+      let w = [
         [Math.random(), Math.random(), Math.random()],
         [Math.random(), Math.random(), Math.random()]
       ];
-      let w2 = [Math.random(), Math.random(), Math.random()];
-      let i = 0;
+      let wSalida = [Math.random(), Math.random(), Math.random()];
+      let error = Infinity, i = 0, errorMin = Infinity;
+      const xExt = x.map(p => [...p, 1]);
+      let wMin = [JSON.parse(JSON.stringify(w)), [...wSalida]];
 
-      while (i < cota) {
-        for (let j = 0; j < x.length; j++) {
-          const entrada = [...x[j], 1];
-          const h1 = signo(dot(entrada, w1[0]));
-          const h2 = signo(dot(entrada, w1[1]));
-          const salida = signo(dot([h1, h2, 1], w2));
+      while (error > 0 && i < cota) {
+        const idx = Math.floor(Math.random() * x.length);
+        const h = w.map(wi => signo(dot(xExt[idx], wi)));
+        const hExt = [1, ...h];
+        const salida = signo(dot(hExt, wSalida));
 
-          const delta2 = eta * (y[j] - salida);
-          w2 = w2.map((w, idx) => w + delta2 * [h1, h2, 1][idx]);
+        const deltaSalida = hExt.map(val => eta * (y[idx] - salida) * val);
+        wSalida = wSalida.map((w, j) => w + deltaSalida[j]);
+
+        for (let j = 0; j < w.length; j++) {
+          const delta = xExt[idx].map(val => eta * (y[idx] - salida) * wSalida[j + 1] * val);
+          w[j] = w[j].map((wj, k) => wj + delta[k]);
         }
-        graficar(x, y, [w1[0], w1[1]]);
+
+        error = errorAbsoluto(x, y, [w[0], w[1], wSalida], "multicapa");
+        if (error < errorMin) {
+          errorMin = error;
+          wMin = [JSON.parse(JSON.stringify(w)), [...wSalida]];
+        }
+
+        graficar(x, y, [w[0], w[1]], "multicapa");
         await new Promise(res => setTimeout(res, 150));
         i++;
       }
-      document.getElementById("resultado").innerText = `Entrenamiento finalizado tras ${i} iteraciones.`;
+      graficar(x, y, [wMin[0][0], wMin[0][1]], "multicapa");
+      document.getElementById("resultado").innerText = `Pesos ocultos: ${JSON.stringify(wMin[0])}, salida: ${wMin[1].map(x => x.toFixed(2))} con error ${errorMin}`;
     }
 
     function iniciarEntrenamiento() {
       const tipo = document.getElementById("dataset").value;
-      const modelo = document.getElementById("modelo").value;
       const eta = parseFloat(document.getElementById("eta").value);
       const cota = parseInt(document.getElementById("cota").value);
-      const datos = datasets[tipo];
+      const modelo = document.getElementById("modelo").value;
 
+      actualizarSVG(modelo);
+
+      const datos = datasets[tipo];
       if (modelo === "simple") {
         perceptronSimple(datos.x, datos.y, eta, cota);
       } else {
