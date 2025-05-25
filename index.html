@@ -128,19 +128,6 @@
       }
     };
 
-    document.getElementById("dataset").addEventListener("change", function() {
-      const tipo = this.value;
-      const boton = document.getElementById("btn-entrenar");
-      const resultado = document.getElementById("resultado");
-      if (tipo === "xor") {
-        boton.disabled = true;
-        resultado.innerText = "El perceptrón simple no puede resolver el problema XOR.";
-      } else {
-        boton.disabled = false;
-        resultado.innerText = "";
-      }
-    });
-
     function signo(h) {
       return h >= 0 ? 1 : -1;
     }
@@ -166,7 +153,8 @@
       ctx.scale(50, -50);
 
       ctx.beginPath();
-      ctx.strokeStyle = "#eee";
+      ctx.strokeStyle = "#ccc";
+      ctx.lineWidth = 0.01;
       for (let xg = -4; xg <= 4; xg++) {
         ctx.moveTo(xg, -4);
         ctx.lineTo(xg, 4);
@@ -179,18 +167,23 @@
 
       for (let i = 0; i < x.length; i++) {
         ctx.beginPath();
-        ctx.arc(x[i][0], x[i][1], 0.1, 0, 2 * Math.PI);
-        ctx.fillStyle = y[i] === 1 ? "green" : "red";
+        ctx.arc(x[i][0], x[i][1], 0.15, 0, 2 * Math.PI);
+        ctx.fillStyle = y[i] === 1 ? "#4CAF50" : "#F44336";
         ctx.fill();
+        ctx.strokeStyle = "#222";
+        ctx.lineWidth = 0.02;
+        ctx.stroke();
       }
 
       if (w[1] !== 0) {
         ctx.beginPath();
         ctx.moveTo(-2, -(w[0] * -2 + w[2]) / w[1]);
         ctx.lineTo(2, -(w[0] * 2 + w[2]) / w[1]);
-        ctx.strokeStyle = "black";
+        ctx.strokeStyle = "#000";
         ctx.lineWidth = 0.05;
+        ctx.setLineDash([0.1, 0.1]);
         ctx.stroke();
+        ctx.setLineDash([]);
       }
 
       ctx.restore();
