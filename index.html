@@ -28,26 +28,40 @@
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 15px;
+            
+            display: grid; /* Cambiado a grid */
+            grid-template-columns: 1fr 1fr; /* Dos columnas de igual ancho */
+            gap: 15px; /* Espacio entre los elementos de la grilla */
+
             max-width: 700px;
             width: 100%;
         }
-        label, input, select, button {
-            margin: 5px;
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            /* El gap del contenedor padre maneja el espaciado entre grupos */
+        }
+        .input-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            text-align: left; /* Asegura que las etiquetas se alineen a la izquierda */
+        }
+        .input-group select,
+        .input-group input[type="number"] {
             padding: 10px 12px;
-            font-size: 1rem;
-            border-radius: 8px;
             border: 1px solid #ced4da;
-            box-sizing: border-box;
+            border-radius: 8px; /* Esquinas redondeadas */
+            font-size: 1em;
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            width: 100%; /* Ocupa todo el ancho del input-group */
+            box-sizing: border-box; /* Incluye padding y border en el width */
         }
-        input[type="number"] {
-            width: 120px; /* Ajuste de ancho para inputs numéricos */
-        }
-        select {
-            min-width: 150px;
+        .input-group select:focus,
+        .input-group input[type="number"]:focus {
+            border-color: #80bdff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            outline: none;
         }
         button {
             background-color: #007bff;
@@ -58,6 +72,11 @@
             font-weight: 600;
             width: auto;
             padding: 12px 25px;
+            border: none; /* Eliminar borde por defecto del botón */
+            border-radius: 8px; /* Esquinas redondeadas para el botón */
+
+            grid-column: 1 / -1; /* Hace que el botón ocupe todas las columnas */
+            margin-top: 10px; /* Espacio superior para separarlo de los inputs */
         }
         button:hover:not(:disabled) {
             background-color: #0056b3;
@@ -115,8 +134,8 @@
             height: 200px;
         }
         .neuron {
-            fill: #e0e0e0;
-            stroke: #666;
+            /* fill y filter se aplicarán directamente en el SVG con url() */
+            stroke: #999; /* Color de contorno más suave */
             stroke-width: 1;
             z-index: 2;
         }
@@ -127,14 +146,13 @@
             pointer-events: none;
         }
         .connection {
-            stroke: #555;
-            stroke-width: 2;
+            stroke: #777; /* Color de conexión más suave */
+            stroke-width: 1.5; /* Ligeramente más delgado */
         }
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .controls-container {
-                flex-direction: column;
-                align-items: center;
+                grid-template-columns: 1fr; /* Una sola columna en pantallas pequeñas */
             }
             .visualization-container {
                 flex-direction: column;
@@ -160,23 +178,32 @@
     <h1>Entrenamiento del Perceptrón</h1>
 
     <div class="controls-container">
-        <label for="modelo">Modelo:</label>
-        <select id="modelo">
-            <option value="simple">Perceptrón Simple</option>
-            <option value="multicapa">Multicapa</option>
-        </select>
+        <div class="input-group">
+            <label for="modelo">Modelo:</label>
+            <select id="modelo">
+                <option value="simple">Perceptrón Simple</option>
+                <option value="multicapa">Multicapa</option>
+            </select>
+        </div>
 
-        <label for="dataset">Selecciona un dataset:</label>
-        <select id="dataset">
-            <option value="and">AND</option>
-            <option value="xor">XOR</option>
-        </select>
+        <div class="input-group">
+            <label for="dataset">Selecciona un dataset:</label>
+            <select id="dataset">
+                <option value="and">AND</option>
+                <option value="xor">XOR</option>
+            </select>
+        </div>
 
-        <label for="eta">Tasa de aprendizaje (η):</label>
-        <input type="number" id="eta" step="0.01" value="0.1" />
+        <div class="input-group">
+            <label for="eta">Tasa de aprendizaje (η):</label>
+            <input type="number" id="eta" step="0.01" value="0.1" />
+        </div>
 
-        <label for="cota">Cantidad máxima de iteraciones:</label>
-        <input type="number" id="cota" value="1000" /> 
+        <div class="input-group">
+            <label for="cota">Cantidad máxima de iteraciones:</label>
+            <input type="number" id="cota" value="1000" /> 
+        </div>
+        
         <button id="btn-entrenar" onclick="toggleTraining()">Iniciar entrenamiento</button>
     </div>
 
@@ -326,6 +353,31 @@
             return Infinity;
         }
 
+        // --- Función para verificar clasificación perfecta ---
+        function checkAllClassifiedCorrectly(x, y, wjk, wij) {
+            const num_hidden_neurons = wjk[0].length; // Obtener de los pesos para consistencia
+            const xExt = x.map(p => [...p, 1]); // Entradas con sesgo
+
+            for (let i = 0; i < x.length; i++) {
+                const Vk = toRowVector(xExt[i]);
+
+                // Propagación hacia adelante
+                const h_j_matrix = matMul(Vk, wjk);
+                const Vj_activations = h_j_matrix[0].map(val => g(val));
+                const Vj_with_bias = toRowVector([...Vj_activations, 1]);
+
+                const h_i_matrix = matMul(Vj_with_bias, wij);
+                const Vi = g(h_i_matrix[0][0]); // Activación de salida final (tanh)
+
+                const predicted_class = signo(Vi); // Aplicar signo para obtener -1 o 1
+
+                if (predicted_class !== y[i]) {
+                    return false; // Se encontró un punto mal clasificado
+                }
+            }
+            return true; // Todos los puntos clasificados correctamente
+        }
+
         // --- Funciones de Entrenamiento del Perceptrón ---
         async function perceptronSimple(x, y, eta, cota) {
             let w = [0, 0, 1]; // Pesos iniciales [w1, w2, bias]
@@ -398,6 +450,7 @@
             const inicio_tiempo = performance.now();
 
             let actual_epochs_completed = 0; // Variable para rastrear las épocas completadas
+            let perfectly_classified = false; // Bandera para clasificación perfecta
 
             for (let epoch_counter = 0; epoch_counter < cota && !stopTrainingFlag; epoch_counter++) { // Usar epoch_counter para el bucle
                 actual_epochs_completed = epoch_counter + 1; // Actualizar el contador real
@@ -454,6 +507,15 @@
                     wjk_min = JSON.parse(JSON.stringify(wjk));
                 }
 
+                // Verificar clasificación perfecta después de cada época
+                if (checkAllClassifiedCorrectly(x, y, wjk, wij)) {
+                    perfectly_classified = true;
+                    // Asegurarse de que los pesos finales sean los que lograron la clasificación perfecta
+                    wij_min = JSON.parse(JSON.stringify(wij));
+                    wjk_min = JSON.parse(JSON.stringify(wjk));
+                    break; // Detener el entrenamiento
+                }
+
                 // Graficar el estado actual (puede ser lento si hay muchas épocas)
                 graficar(x, y, { wjk: wjk, wij: wij }, "multicapa");
                 await new Promise(res => setTimeout(res, 10)); // Pequeña pausa para visualización
@@ -462,14 +524,16 @@
             const fin_tiempo = performance.now();
             const fin_total = round((fin_tiempo - inicio_tiempo) / 1000, 5);
 
-            // Calcular el error final con los mejores pesos encontrados
+            // Calcular el error final con los mejores pesos encontrados (o los de clasificación perfecta)
             const final_error_overall = calcularError(x, y, "multicapa", { wjk: wjk_min, wij: wij_min });
 
             output_messages.push(`Épocas necesarias: ${actual_epochs_completed}`); // Usar el contador real
             output_messages.push(`Error final: ${final_error_overall.toFixed(6)}`);
             output_messages.push(`Tiempo total: ${fin_total} segundos.`);
             
-            if (stopTrainingFlag) {
+            if (perfectly_classified) {
+                output_messages.push("Clasificación perfecta alcanzada.");
+            } else if (stopTrainingFlag) {
                 output_messages.push("Entrenamiento detenido manualmente.");
             }
 
@@ -565,48 +629,79 @@
         // --- Actualizar Diagrama SVG del Perceptrón ---
         function actualizarSVG(modelo) {
             const svg = document.getElementById("svg-diagram");
-            svg.innerHTML = ""; // Limpiar SVG existente
+            svg.innerHTML = `
+                <defs>
+                    <radialGradient id="inputRadial" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                        <stop offset="0%" style="stop-color:#e0f2f7;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#a7d9ed;stop-opacity:1" />
+                    </radialGradient>
+                    <radialGradient id="hiddenRadial" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                        <stop offset="0%" style="stop-color:#f3e5f5;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#d1c4e9;stop-opacity:1" />
+                    </radialGradient>
+                    <radialGradient id="outputRadial" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                        <stop offset="0%" style="stop-color:#fffde7;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#ffe082;stop-opacity:1" />
+                    </radialGradient>
+
+                    <filter id="drop-shadow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="1"/>
+                        <feOffset dx="1" dy="1" result="offsetblur"/>
+                        <feFlood flood-color="rgba(0,0,0,0.2)"/>
+                        <feComposite in2="offsetblur" operator="in"/>
+                        <feMerge>
+                            <feMergeNode/>
+                            <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                    </filter>
+
+                    <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                            refX="0" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#777" /> </marker>
+                </defs>
+            `; // Limpiar SVG existente y añadir defs
 
             if (modelo === "simple") {
-                svg.innerHTML = `
-                    <line class="connection" x1="50" y1="50" x2="250" y2="100" />
-                    <line class="connection" x1="50" y1="100" x2="250" y2="100" />
-                    <line class="connection" x1="50" y1="150" x2="250" y2="100" />
+                svg.innerHTML += `
+                    <line class="connection" x1="50" y1="50" x2="250" y2="100" marker-end="url(#arrowhead)" />
+                    <line class="connection" x1="50" y1="100" x2="250" y2="100" marker-end="url(#arrowhead)" />
+                    <line class="connection" x1="50" y1="160" x2="250" y2="100" marker-end="url(#arrowhead)" />
 
-                    <circle class="neuron" cx="50" cy="50" r="20" />
-                    <circle class="neuron" cx="50" cy="100" r="20" />
-                    <circle class="neuron" cx="50" cy="150" r="20" />
-                    <circle class="neuron" cx="250" cy="100" r="20" />
+                    <circle class="neuron" cx="50" cy="50" r="20" fill="url(#inputRadial)" style="filter:url(#drop-shadow);" />
+                    <circle class="neuron" cx="50" cy="100" r="20" fill="url(#inputRadial)" style="filter:url(#drop-shadow);" />
+                    <circle class="neuron" cx="50" cy="160" r="20" fill="url(#inputRadial)" style="filter:url(#drop-shadow);" /> 
+
+                    <circle class="neuron" cx="250" cy="100" r="20" fill="url(#outputRadial)" style="filter:url(#drop-shadow);" />
 
                     <text x="50" y="55" text-anchor="middle" class="neuron-label">x₁</text>
                     <text x="50" y="105" text-anchor="middle" class="neuron-label">x₂</text>
                     <text x="50" y="165" text-anchor="middle" class="neuron-label">1</text>
                     <text x="250" y="105" text-anchor="middle" class="neuron-label">O</text>`;
             } else { // Multicapa (3 neuronas ocultas en el diagrama)
-                svg.innerHTML = `
-                    <line class="connection" x1="50" y1="40" x2="150" y2="40" />
-                    <line class="connection" x1="50" y1="100" x2="150" y2="40" />
-                    <line class="connection" x1="50" y1="160" x2="150" y2="40" />
+                svg.innerHTML += `
+                    <line class="connection" x1="50" y1="40" x2="150" y2="40" marker-end="url(#arrowhead)" />
+                    <line class="connection" x1="50" y1="100" x2="150" y2="40" marker-end="url(#arrowhead)" />
+                    <line class="connection" x1="50" y1="160" x2="150" y2="40" marker-end="url(#arrowhead)" />
 
-                    <line class="connection" x1="50" y1="40" x2="150" y2="100" />
-                    <line class="connection" x1="50" y1="100" x2="150" y2="100" />
-                    <line class="connection" x1="50" y1="160" x2="150" y2="100" />
+                    <line class="connection" x1="50" y1="40" x2="150" y2="100" marker-end="url(#arrowhead)" />
+                    <line class="connection" x1="50" y1="100" x2="150" y2="100" marker-end="url(#arrowhead)" />
+                    <line class="connection" x1="50" y1="160" x2="150" y2="100" marker-end="url(#arrowhead)" />
 
-                    <line class="connection" x1="50" y1="40" x2="150" y2="160" />
-                    <line class="connection" x1="50" y1="100" x2="150" y2="160" />
-                    <line class="connection" x1="50" y1="160" x2="150" y2="160" />
+                    <line class="connection" x1="50" y1="40" x2="150" y2="160" marker-end="url(#arrowhead)" />
+                    <line class="connection" x1="50" y1="100" x2="150" y2="160" marker-end="url(#arrowhead)" />
+                    <line class="connection" x1="50" y1="160" x2="150" y2="160" marker-end="url(#arrowhead)" />
 
-                    <line class="connection" x1="150" y1="40" x2="250" y2="100" />
-                    <line class="connection" x1="150" y1="100" x2="250" y2="100" />
-                    <line class="connection" x1="150" y1="160" x2="250" y2="100" />
+                    <line class="connection" x1="150" y1="40" x2="250" y2="100" marker-end="url(#arrowhead)" />
+                    <line class="connection" x1="150" y1="100" x2="250" y2="100" marker-end="url(#arrowhead)" />
+                    <line class="connection" x1="150" y1="160" x2="250" y2="100" marker-end="url(#arrowhead)" />
                     
-                    <circle class="neuron" cx="50" cy="40" r="20" />
-                    <circle class="neuron" cx="50" cy="100" r="20" />
-                    <circle class="neuron" cx="50" cy="160" r="20" />
-                    <circle class="neuron" cx="150" cy="40" r="20" />
-                    <circle class="neuron" cx="150" cy="100" r="20" />
-                    <circle class="neuron" cx="150" cy="160" r="20" />
-                    <circle class="neuron" cx="250" cy="100" r="20" />
+                    <circle class="neuron" cx="50" cy="40" r="20" fill="url(#inputRadial)" style="filter:url(#drop-shadow);" />
+                    <circle class="neuron" cx="50" cy="100" r="20" fill="url(#inputRadial)" style="filter:url(#drop-shadow);" />
+                    <circle class="neuron" cx="50" cy="160" r="20" fill="url(#inputRadial)" style="filter:url(#drop-shadow);" />
+                    <circle class="neuron" cx="150" cy="40" r="20" fill="url(#hiddenRadial)" style="filter:url(#drop-shadow);" />
+                    <circle class="neuron" cx="150" cy="100" r="20" fill="url(#hiddenRadial)" style="filter:url(#drop-shadow);" />
+                    <circle class="neuron" cx="150" cy="160" r="20" fill="url(#hiddenRadial)" style="filter:url(#drop-shadow);" />
+                    <circle class="neuron" cx="250" cy="100" r="20" fill="url(#outputRadial)" style="filter:url(#drop-shadow);" />
 
                     <text x="50" y="45" text-anchor="middle" class="neuron-label">x₁</text>
                     <text x="50" y="105" text-anchor="middle" class="neuron-label">x₂</text>
