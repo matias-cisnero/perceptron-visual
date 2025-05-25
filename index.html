@@ -14,8 +14,10 @@
     canvas {
       max-width: 500px;
     }
-    label, input {
+    label, input, select, button {
       margin: 5px;
+      padding: 5px;
+      font-size: 1rem;
     }
   </style>
 </head>
@@ -35,6 +37,8 @@
   <input type="number" id="cota" value="100" /><br>
 
   <button onclick="iniciarEntrenamiento()">Iniciar entrenamiento</button>
+
+  <p id="resultado"></p>
 
   <canvas id="grafico" width="400" height="400"></canvas>
 
@@ -126,8 +130,8 @@
         i++;
       }
 
-      graficar(x, y, w, i);
-      console.log(`Pesos finales tras ${i} iteraciones:`, wMin);
+      graficar(x, y, wMin, i);
+      document.getElementById("resultado").innerText = `Pesos finales tras ${i} iteraciones: [${wMin.map(n => n.toFixed(2)).join(", ")}] con error ${errorMin}`;
     }
 
     function iniciarEntrenamiento() {
@@ -141,3 +145,4 @@
   </script>
 </body>
 </html>
+
