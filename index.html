@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Visualización del Perceptrón</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin: 30px; }
+    canvas { background: #f9f9f9; max-width: 600px; margin: 20px auto; }
+    button { margin: 10px; padding: 10px 20px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Visualización del Perceptrón Simple</h1>
+  <canvas id="chart" width="600" height="400"></canvas>
+  <br>
+  <button onclick="togglePause()">Pausar/Reanudar</button>
+  <button onclick="setDataset('and')">AND</button>
+  <button onclick="setDataset('xor')">XOR</button>
+  <div id="status"></div>
+
+  <script>
+    let datasets = {
+      'and': {
+        x: [[-1, 1], [1, -1], [-1, -1], [1, 1]],
+        y: [-1, -1, -1, 1]
+      },
+      'xor': {
+        x: [[-1, 1], [1, -1], [-1, -1], [1, 1]],
+        y: [1, 1, -1, -1]
+      }
+    };
+
+    let currentDataset = 'and';
+    let paused = false;
+    let intervalId;
+
+    const canvas = document.getElementById('chart');
+    const ctx = canvas.getContext('2d');
+
+    let scatterChart = new Chart(ctx, {
+      type: 'scatter',
+      data: { datasets: [] },
+      options: {
+        animation: false,
+        scales: {
+          x: { type: 'linear', min: -2, max: 2 },
+          y: { type: 'linear', min: -2, max: 2 }
+        }
+      }
+    });
+
+    function signo(h) { return h >= 0 ? 1 : -1; }
+
+    function errorAbsoluto(x, y, w) {
+      let error = 0;
+      for (let i = 0; i < x.length; i++) {
+        let h = x[i][0]*w[0] + x[i][1]*w[1] + w[2];
+        let o = signo(h);
+        error += Math.abs(y[i] - o);
+      }
+      return error;
+    }
+
+    function entrenar(datasetName) {
+      clearInterval(intervalId);
+
+      const data = datasets[datasetName];
+      const x = data.x;
+      const y = data.y;
+
+      let w = [0, 0, 1];
+      const eta = 0.1;
+      let i = 0;
+      let error = 1;
+
+      intervalId = setInterval(() => {
+        if (paused) return;
+
+        const idx = Math.floor(Math.random() * x.length);
+        let h = x[idx][0]*w[0] + x[idx][1]*w[1] + w[2];
+        let o = signo(h);
+        let dw = eta * (y[idx] - o);
+
+        w[0] += dw * x[idx][0];
+        w[1] += dw * x[idx][1];
+        w[2] += dw;
+
+        error = errorAbsoluto(x, y, w);
+        graficar(x, y, w, i);
+
+        if (error === 0 || i > 500) {
+          clearInterval(intervalId);
+          document.getElementById('status').innerText = `Entrenamiento finalizado en ${i} iteraciones.`;
+        }
+        i++;
+      }, 200);
+    }
+
+    function graficar(x, y, w, iteracion) {
+      const dataPos = [], dataNeg = [];
+      for (let i = 0; i < x.length; i++) {
+        (y[i] > 0 ? dataPos : dataNeg).push({x: x[i][0], y: x[i][1]});
+      }
+
+      let recta = [];
+      if (w[1] !== 0) {
+        let x_vals = [-2, 2];
+        let y_vals = x_vals.map(x => -(w[0]*x + w[2]) / w[1]);
+        recta = [{x: x_vals[0], y: y_vals[0]}, {x: x_vals[1], y: y_vals[1]}];
+      }
+
+      scatterChart.data.datasets = [
+        {
+          label: 'Clase 1', data: dataPos, backgroundColor: 'blue', showLine: false
+        },
+        {
+          label: 'Clase -1', data: dataNeg, backgroundColor: 'red', showLine: false
+        },
+        {
+          label: `Recta iter ${iteracion}`, data: recta, borderColor: 'black', fill: false, showLine: true, pointRadius: 0
+        }
+      ];
+
+      scatterChart.update();
+    }
+
+    function togglePause() {
+      paused = !paused;
+    }
+
+    function setDataset(name) {
+      currentDataset = name;
+      document.getElementById('status').innerText = `Dataset seleccionado: ${name.toUpperCase()}`;
+      entrenar(name);
+    }
+
+    // Inicialización
+    setDataset(currentDataset);
+  </script>
+</body>
+</html>
